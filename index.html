@@ -1,0 +1,447 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#11132b">
+<title>Vee AI Video Maker</title>
+<meta name="description" content="Create vertical social media videos from your ideas with Vee AI Video Maker.">
+
+<style>
+:root {
+  --bg: #101226;
+  --panel: #1b1e39;
+  --text: #ffffff;
+  --muted: #b8bdd5;
+  --accent: #9177ff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 22px 16px 40px;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+main { max-width: 520px; margin: auto; }
+header { text-align: center; margin: 15px 0 25px; }
+.logo {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 15px;
+  font-size: 23px;
+  font-weight: bold;
+}
+h1 { font-size: 29px; margin: 16px 0 8px; }
+p { color: var(--muted); line-height: 1.6; }
+.panel {
+  background: var(--panel);
+  padding: 18px;
+  border-radius: 18px;
+  margin: 15px 0;
+}
+label {
+  display: block;
+  font-size: 14px;
+  margin: 15px 0 7px;
+  font-weight: bold;
+}
+input, select, button {
+  width: 100%;
+  padding: 14px;
+  border-radius: 11px;
+  font-size: 16px;
+}
+input, select {
+  border: 1px solid #424665;
+  background: #11152b;
+  color: white;
+}
+button {
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 15px;
+}
+button:disabled { opacity: .5; cursor: wait; }
+.secondary { background: #343956; }
+canvas {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  margin: 18px auto;
+  border-radius: 15px;
+  background: #171735;
+}
+#status { text-align: center; min-height: 25px; }
+#download { display: none; }
+.note { font-size: 12px; text-align: center; }
+footer { text-align: center; margin-top: 25px; }
+</style>
+</head>
+
+<body>
+<main>
+<header>
+  <div class="logo">VEE AI</div>
+  <h1>AI Video Maker</h1>
+  <p>Turn your ideas into vertical videos for TikTok,
+  YouTube Shorts and Facebook Reels.</p>
+</header>
+
+<section class="panel">
+  <label for="topic">What is your video about?</label>
+  <input id="topic" maxlength="100"
+    placeholder="Example: 5 ways to save money">
+
+  <label for="style">Choose your video style</label>
+  <select id="style">
+    <option value="purple">Modern and creative</option>
+    <option value="sunshine">Bright and cheerful</option>
+    <option value="dark">Dark and dramatic</option>
+    <option value="ocean">Cool ocean colours</option>
+  </select>
+
+  <label for="length">Video length</label>
+  <select id="length">
+    <option value="15">15 seconds</option>
+    <option value="30">30 seconds</option>
+  </select>
+
+  <button id="create">Create My Video</button>
+  <p id="status" role="status">Your video is ready to be created.</p>
+</section>
+
+<section class="panel">
+  <h2 style="font-size:19px">Video preview</h2>
+  <canvas id="video" width="720" height="1280"></canvas>
+  <button id="download">Download My Video</button>
+  <button id="again" class="secondary">Create Another Video</button>
+  <p class="note">Vertical 9:16 video. Download format: WebM.
+  Video creation takes approximately the length of the video.</p>
+</section>
+
+<footer>
+  <p>Made with ❤️ by Vee AI Video Maker</p>
+  <p class="note">Free starter version. No account required.</p>
+</footer>
+</main>
+
+<script>
+"use strict";
+
+const canvas = document.getElementById("video");
+const ctx = canvas.getContext("2d");
+const topicInput = document.getElementById("topic");
+const styleInput = document.getElementById("style");
+const lengthInput = document.getElementById("length");
+const createButton = document.getElementById("create");
+const downloadButton = document.getElementById("download");
+const againButton = document.getElementById("again");
+const statusText = document.getElementById("status");
+
+let videoURL = null;
+let busy = false;
+
+const palettes = {
+  purple: ["#171735", "#9478ff", "#ffffff"],
+  sunshine: ["#fff0a6", "#ff783b", "#29204a"],
+  dark: ["#101014", "#ff3d70", "#ffffff"],
+  ocean: ["#062c43", "#20d9c4", "#ffffff"]
+};
+
+function makeScenes(subject, seconds) {
+  const scenes = [
+    ["WELCOME!", "Let's talk about " + subject + "."],
+    ["HERE IS THE IDEA", subject],
+    ["TIP NUMBER ONE", "Start with one small step."],
+    ["KEEP LEARNING", "Small actions can make a difference."],
+    ["REMEMBER THIS", "Consistency is important."]
+  ];
+
+  if (seconds >= 30) {
+    scenes.push(
+      ["TIP NUMBER TWO", "Practise a little every day."],
+      ["TIP NUMBER THREE", "Be patient with your progress."],
+      ["YOUR NEXT STEP", "Put this idea into action."],
+      ["SHARE THIS VIDEO", "Send it to someone who needs it."],
+      ["THANK YOU!", "Follow for more useful videos."]
+    );
+  } else {
+    scenes.push(["YOUR NEXT STEP", "Put this idea into action."]);
+  }
+
+  return scenes;
+}
+
+function wrapText(text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let line = "";
+
+  for (const word of words) {
+    const test = line ? line + " " + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawWrapped(text, x, y, maxWidth, lineHeight) {
+  const lines = wrapText(text, maxWidth);
+  const totalHeight = lines.length * lineHeight;
+  const start = y - totalHeight / 2 + lineHeight / 2;
+
+  lines.forEach((line, i) => {
+    ctx.fillText(line, x, start + i * lineHeight);
+  });
+}
+
+function drawScene(scenes, index, elapsed, total) {
+  const [bg, accent, fg] = palettes[styleInput.value];
+  const w = canvas.width;
+  const h = canvas.height;
+  const scene = scenes[index];
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // Decorative moving circles
+  ctx.globalAlpha = 0.8;
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(
+    w * 0.83,
+    h * 0.17,
+    125 + 18 * Math.sin(elapsed * 2),
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = fg;
+  ctx.beginPath();
+  ctx.arc(w * 0.12, h * 0.78, 210, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = fg;
+  ctx.font = "bold 30px Arial";
+  ctx.fillText("VEE AI VIDEO MAKER", w / 2, h * 0.10);
+
+  ctx.fillStyle = accent;
+  ctx.fillRect(w * 0.13, h * 0.29, w * 0.74, 9);
+
+  ctx.fillStyle = fg;
+  ctx.font = "bold 58px Arial";
+  drawWrapped(scene[0], w / 2, h * 0.39, w * 0.82, 70);
+
+  ctx.font = "bold 43px Arial";
+  drawWrapped(scene[1], w / 2, h * 0.55, w * 0.82, 59);
+
+  ctx.fillStyle = accent;
+  ctx.fillRect(w * 0.13, h * 0.82, w * 0.74, 8);
+
+  ctx.fillStyle = fg;
+  ctx.font = "26px Arial";
+  ctx.fillText("Made with Vee AI", w / 2, h * 0.88);
+
+  ctx.font = "23px Arial";
+  ctx.fillText(
+    "Scene " + (index + 1) + " of " + scenes.length,
+    w / 2,
+    h * 0.93
+  );
+
+  // Progress bar
+  ctx.fillStyle = "#ffffff44";
+  ctx.fillRect(0, h - 12, w, 12);
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, h - 12, w * Math.min(1, elapsed / total), 12);
+}
+
+function releaseURL() {
+  if (videoURL) {
+    URL.revokeObjectURL(videoURL);
+    videoURL = null;
+  }
+}
+
+function createVideo() {
+  if (busy) return;
+
+  const subject = topicInput.value.trim();
+  if (!subject) {
+    statusText.textContent = "Please enter a topic first.";
+    topicInput.focus();
+    return;
+  }
+
+  if (!canvas.captureStream || !window.MediaRecorder) {
+    statusText.textContent =
+      "Your browser does not support recording. Please try a recent version of Chrome.";
+    return;
+  }
+
+  const mimeTypes = [
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
+    "video/webm"
+  ];
+  const mimeType = mimeTypes.find(
+    type => MediaRecorder.isTypeSupported(type)
+  );
+
+  if (!mimeType) {
+    statusText.textContent =
+      "This browser cannot record a supported video format.";
+    return;
+  }
+
+  busy = true;
+  createButton.disabled = true;
+  downloadButton.style.display = "none";
+  releaseURL();
+
+  const seconds = Number(lengthInput.value);
+  const scenes = makeScenes(subject, seconds);
+  const sceneLength = seconds / scenes.length;
+  const fps = 24;
+  const stream = canvas.captureStream(fps);
+  const chunks = [];
+  let recorder;
+  let startedAt = 0;
+  let stopped = false;
+
+  try {
+    recorder = new MediaRecorder(stream, { mimeType });
+  } catch (error) {
+    stream.getTracks().forEach(track => track.stop());
+    busy = false;
+    createButton.disabled = false;
+    statusText.textContent = "Could not start recording. Please try again.";
+    return;
+  }
+
+  recorder.ondataavailable = event => {
+    if (event.data && event.data.size > 0) {
+      chunks.push(event.data);
+    }
+  };
+
+  recorder.onerror = () => {
+    stream.getTracks().forEach(track => track.stop());
+    busy = false;
+    createButton.disabled = false;
+    statusText.textContent = "Recording failed. Please try again.";
+  };
+
+  recorder.onstop = () => {
+    stream.getTracks().forEach(track => track.stop());
+    busy = false;
+    createButton.disabled = false;
+
+    if (chunks.length === 0) {
+      statusText.textContent = "No video was created. Please try again.";
+      return;
+    }
+
+    const blob = new Blob(chunks, { type: mimeType });
+    videoURL = URL.createObjectURL(blob);
+
+    downloadButton.onclick = () => {
+      if (!videoURL) return;
+      const link = document.createElement("a");
+      link.href = videoURL;
+      link.download = "vee-ai-video.webm";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    };
+
+    downloadButton.style.display = "block";
+    statusText.textContent =
+      "Your video is ready! Tap Download My Video.";
+  };
+
+  drawScene(scenes, 0, 0, seconds);
+
+  try {
+    recorder.start(250);
+  } catch (error) {
+    stream.getTracks().forEach(track => track.stop());
+    busy = false;
+    createButton.disabled = false;
+    statusText.textContent = "Recording could not start. Try again.";
+    return;
+  }
+
+  startedAt = performance.now();
+
+  function animate(now) {
+    if (stopped) return;
+
+    const elapsed = (now - startedAt) / 1000;
+
+    if (elapsed >= seconds) {
+      stopped = true;
+      drawScene(scenes, scenes.length - 1, seconds, seconds);
+      statusText.textContent = "Finishing your video...";
+
+      setTimeout(() => {
+        if (recorder.state !== "inactive") recorder.stop();
+      }, 200);
+      return;
+    }
+
+    const index = Math.min(
+      scenes.length - 1,
+      Math.floor(elapsed / sceneLength)
+    );
+
+    drawScene(scenes, index, elapsed, seconds);
+    statusText.textContent =
+      "Creating your video: " +
+      Math.floor((elapsed / seconds) * 100) + "%";
+
+    requestAnimationFrame(animate);
+  }
+
+  requestAnimationFrame(animate);
+}
+
+createButton.addEventListener("click", createVideo);
+
+againButton.addEventListener("click", () => {
+  if (busy) return;
+  topicInput.value = "";
+  downloadButton.style.display = "none";
+  releaseURL();
+  statusText.textContent = "Enter a new topic to create another video.";
+  topicInput.focus();
+});
+
+drawScene(
+  [["WELCOME TO VEE AI", "Your next video starts here."],],
+  0, 0, 15
+);
+</script>
+</body>
+</html>
